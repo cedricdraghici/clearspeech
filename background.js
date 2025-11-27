@@ -86,7 +86,12 @@ async function startTabCapture(tabId) {
     console.log('Got stream ID:', streamId);
 
     // 5) Tell offscreen to start processing
-    await chrome.runtime.sendMessage({ type: 'PROCESS_AUDIO_STREAM', streamId });
+    const offscreenResponse = await chrome.runtime.sendMessage({ type: 'PROCESS_AUDIO_STREAM', streamId });
+
+    // Check if offscreen returned an error
+    if (offscreenResponse && !offscreenResponse.success) {
+      throw new Error(offscreenResponse.error || 'Failed to start audio processing');
+    }
 
   } catch (error) {
     console.error('Error starting tab capture:', error);

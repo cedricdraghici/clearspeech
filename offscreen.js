@@ -1,5 +1,5 @@
 // Offscreen document for OpenAI Realtime API WebSocket streaming
-// Captures tab audio → converts to PCM → streams via WebSocket → receives English transcription
+// Captures tab audio -> converts to PCM -> streams via WebSocket -> receives English transcription
 
 let audioContext = null;
 let mediaStreamSource = null;
@@ -44,7 +44,7 @@ async function processAudioStream(streamId) {
     // Step 1: Get ephemeral token from backend
     const tokenData = await getRealtimeToken();
     if (!tokenData) {
-      throw new Error('Failed to obtain Realtime session token');
+      throw new Error('Backend server is not running. Please start the backend with "npm start" in the backend folder.');
     }
 
     // Step 2: Get the tab audio stream
@@ -79,6 +79,15 @@ async function processAudioStream(streamId) {
 
   } catch (error) {
     console.error('[Realtime] Error processing audio stream:', error);
+
+    // Send error back to background script
+    chrome.runtime.sendMessage({
+      type: 'AUDIO_PROCESSING_ERROR',
+      error: error.message
+    }).catch(err => {
+      console.error('[Realtime] Error sending error message:', err);
+    });
+
     throw error;
   }
 }
@@ -550,8 +559,16 @@ function stopProcessing() {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'PROCESS_AUDIO_STREAM') {
     processAudioStream(message.streamId)
-      .then(() => sendResponse({ success: true }))
-      .catch(error => sendResponse({ success: false, error: error.message }));
+      .then(() => {
+        sendResponse({ success: true });
+      })
+      .catch(error => {
+        // Send detailed error response
+        sendResponse({
+          success: false,
+          error: error.message || 'Unknown error occurred'
+        });
+      });
     return true;
   } else if (message.type === 'STOP_PROCESSING') {
     stopProcessing();

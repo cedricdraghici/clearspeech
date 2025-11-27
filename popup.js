@@ -69,7 +69,7 @@ async function toggleListening() {
 
     if (!tab || !tab.id) {
       console.error('No active tab found');
-      alert('Please open a tab with a video or audio content.');
+      showMessage('Please open a tab with a video or audio content.');
       return;
     }
 
@@ -134,13 +134,15 @@ async function toggleListening() {
     isListening = false;
     updateUI();
 
-    // Show user-friendly error message
-    if (error.message.includes('Cannot start audio capture')) {
-      alert('Unable to capture audio from this tab. Make sure the tab has audio/video content playing.');
+    // Show user-friendly error message in UI
+    if (error.message.includes('Backend server is not running')) {
+      showMessage('Backend server is not running. Please start it with "npm start" in the backend folder.');
+    } else if (error.message.includes('Cannot start audio capture')) {
+      showMessage('Unable to capture audio from this tab. Make sure the tab has audio/video content playing.');
     } else if (error.message.includes('content script')) {
-      alert('Please refresh the page and try again.');
+      showMessage('Please refresh the page and try again.');
     } else {
-      alert('Error: ' + error.message);
+      showMessage('Error: ' + error.message);
     }
   }
 }
