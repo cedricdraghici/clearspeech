@@ -22,6 +22,15 @@ const BACKEND_URL = 'http://localhost:3000';
 const TARGET_SAMPLE_RATE = 24000; // OpenAI Realtime API expects 24kHz PCM
 const PCM_CHUNK_SIZE = 2000; // ~50ms of audio at 24kHz (low latency)
 
+// Helper function to keep only English (Latin) characters and basic punctuation
+function keepEnglish(text) {
+  if (!text) return '';
+  // Remove any non-ASCII characters (Chinese, Arabic, etc.)
+  // Keep: A–Z, a–z, 0–9, space, period, comma, ! ? ' " ( ) - : ;
+  const cleaned = text.replace(/[^A-Za-z0-9 .,!?'"()\-:;]/g, ' ');
+  return cleaned.replace(/\s+/g, ' ').trim();
+}
+
 // Main entry point: process audio stream using streamId
 async function processAudioStream(streamId) {
   try {
@@ -124,7 +133,8 @@ async function connectRealtimeWebSocket(clientSecret) {
             input_audio_format: 'pcm16',
             output_audio_format: 'pcm16',  // Not used in STT-only mode
             input_audio_transcription: {
-              model: 'gpt-4o-mini-transcribe' // Pure transcription model
+              model: 'gpt-4o-mini-transcribe', // Pure transcription model
+              language: 'en' // Force English transcription
             },
             turn_detection: {
               type: 'server_vad',
@@ -163,8 +173,10 @@ async function connectRealtimeWebSocket(clientSecret) {
 
 // Extract full words from delta text
 function extractWords(delta) {
+  // Clean to English only before splitting
+  const clean = keepEnglish(delta);
   // Split by spaces and filter out empty strings
-  const words = delta.split(/\s+/).filter(word => word.length > 0);
+  const words = clean.split(/\s+/).filter(word => word.length > 0);
   return words;
 }
 
@@ -262,7 +274,8 @@ function handleRealtimeMessage(data) {
 
       case 'conversation.item.input_audio_transcription.completed':
         // This is the finalized English transcription
-        const transcript = message.transcript || '';
+        const rawTranscript = message.transcript || '';
+        const transcript = keepEnglish(rawTranscript);
         console.log('[Realtime] Transcription completed:', transcript);
 
         currentTranscript = transcript;
