@@ -1,0 +1,25 @@
+{
+  "name": "realtime-token-backend",
+  "version": "2.0.0",
+  "description": "Token generation backend for OpenAI Realtime API (English speech-to-text)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "openai",
+    "realtime-api",
+    "stt",
+    "speech-to-text",
+    "websocket"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "node-fetch": "^3.3.2"
+  }
+}
