@@ -18,6 +18,11 @@ let debounceTimer = null; // Timer for debounced UI updates
 const DEBOUNCE_DELAY = 100; // 100ms debounce delay
 const FINAL_DISPLAY_TIME = 700; // Keep final subtitle for 700ms
 
+// 35-word limit with auto-reset
+const WORD_LIMIT = 35; // Maximum words per segment
+const SEGMENT_RESET_DELAY = 1000; // 1000ms delay before showing next segment
+let isWaitingForReset = false; // Flag to prevent updates during reset delay
+
 const BACKEND_URL = 'http://localhost:3000';
 const TARGET_SAMPLE_RATE = 24000; // OpenAI Realtime API expects 24kHz PCM
 const PCM_CHUNK_SIZE = 2000; // ~50ms of audio at 24kHz (low latency)
@@ -182,6 +187,46 @@ function extractWords(delta) {
 
 // Send debounced UI update with current words
 function sendDebouncedUpdate() {
+  // Don't send updates if we're waiting for reset
+  if (isWaitingForReset) {
+    return;
+  }
+
+  // Check if we've reached the 35-word limit
+  if (currentWords.length >= WORD_LIMIT) {
+    // Immediately send the first 35 words as a final segment
+    const segmentWords = currentWords.slice(0, WORD_LIMIT);
+    const transcript = segmentWords.join(' ');
+
+    console.log('[Realtime] 35-word limit reached, sending segment:', transcript);
+
+    // Send as final subtitle
+    sendFinalUpdate(transcript);
+
+    // Store remaining words (words beyond the 35-word limit)
+    const remainingWords = currentWords.slice(WORD_LIMIT);
+
+    // Clear current words and set waiting flag
+    currentWords = [];
+    isWaitingForReset = true;
+
+    // Wait 1000ms before allowing next segment
+    setTimeout(() => {
+      console.log('[Realtime] Reset complete, resuming with remaining words:', remainingWords.length);
+      isWaitingForReset = false;
+
+      // Restore remaining words and continue
+      currentWords = remainingWords;
+
+      // If there are remaining words, send them as the new segment
+      if (currentWords.length > 0) {
+        sendDebouncedUpdate();
+      }
+    }, SEGMENT_RESET_DELAY);
+
+    return;
+  }
+
   // Clear existing timer
   if (debounceTimer) {
     clearTimeout(debounceTimer);
@@ -245,6 +290,7 @@ function handleRealtimeMessage(data) {
         currentTranscript = ''; // Clear on new speech
         currentWords = []; // Clear word buffer
         samplesSentSinceCommit = 0; // Reset sample counter
+        isWaitingForReset = false; // Reset waiting flag
 
         // Clear any pending debounce timer
         if (debounceTimer) {
@@ -489,6 +535,7 @@ function stopProcessing() {
   pcmBuffer = new Int16Array(0);
   samplesSentSinceCommit = 0;
   chunksSentSinceCommit = 0;
+  isWaitingForReset = false;
 
   // Clear debounce timer
   if (debounceTimer) {
